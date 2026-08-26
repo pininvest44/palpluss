@@ -1,14 +1,14 @@
 {
-  "name": "palpluss-bulk-stk",
+  "name": "bulk-stk-push",
   "version": "1.0.0",
-  "description": "Bulk STK Push web application using Palpluss API",
+  "description": "Bulk STK Push web interface integrated with Palpluss API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "axios": "^1.7.0",
-    "express": "^4.19.0",
-    "express-rate-limit": "^7.2.0"
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   }
 }
