@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk STK Push Dispatcher</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f4f6f8; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 800px; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    h2 { margin-top: 0; color: #111827; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; color: #374151; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+    textarea { height: 120px; resize: vertical; }
+    button { background-color: #10b981; color: white; border: none; padding: 12px 20px; font-size: 16px; font-weight: 600; border-radius: 6px; cursor: pointer; width: 100%; }
+    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    .log-container { margin-top: 30px; background: #1e293b; color: #f8fafc; padding: 20px; border-radius: 6px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; }
+    .log-entry { margin-bottom: 8px; word-break: break-all; }
+    .success { color: #34d399; }
+    .failed { color: #f87171; }
+    .info { color: #60a5fa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Bulk M-Pesa STK Push</h2>
+    <form id="stkForm">
+      <div class="form-group">
+        <label for="numbers">Phone Numbers (One per line or comma-separated)</label>
+        <textarea id="numbers" placeholder="0712345678&#10;0722001122" required></textarea>
+      </div>
+      <div class="form-group">
+        <label for="amount">Amount (KES)</label>
+        <input type="number" id="amount" placeholder="1000" required>
+      </div>
+      <div class="form-group">
+        <label for="reference">Account Reference</label>
+        <input type="text" id="reference" placeholder="INV-2024-001" required>
+      </div>
+      <div class="form-group">
+        <label for="description">Transaction Description</label>
+        <input type="text" id="description" placeholder="Payment for invoice #2024-001">
+      </div>
+      <button type="submit" id="submitBtn">Send Bulk STK Push (5 req/min)</button>
+    </form>
+
+    <div class="log-container" id="logs">
+      <div class="log-entry info">> Live logs will appear here...</div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('stkForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const logsDiv = document.getElementById('logs');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitBtn.disabled = true;
+      logsDiv.innerHTML = '<div class="log-entry info">> Initializing requests...</div>';
+
+      const body = {
+        numbers: document.getElementById('numbers').value,
+        amount: document.getElementById('amount').value,
+        reference: document.getElementById('reference').value,
+        description: document.getElementById('description').value,
+      };
+
+      const response = await fetch('/api/trigger-bulk-stk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        lines.forEach(line => {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.replace('data: ', ''));
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            if (data.status === 'SUCCESS') {
+              entry.classList.add('success');
+              entry.textContent = `[${data.index}/${data.total}] [SUCCESS] ${data.phone} -> ${JSON.stringify(data.response)}`;
+            } else if (data.status === 'FAILED') {
+              entry.classList.add('failed');
+              entry.textContent = `[${data.index}/${data.total}] [FAILED] ${data.phone} -> ${JSON.stringify(data.error)}`;
+            } else {
+              entry.classList.add('info');
+              entry.textContent = `> ${data.message}`;
+            }
+
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+          }
+        });
+      }
+
+      submitBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
