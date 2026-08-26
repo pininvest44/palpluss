@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bulk-stk-push-app
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PALPLUSS_BASIC_AUTH
+        sync: false
+      - key: PALPLUSS_CHANNEL_ID
+        sync: false
+      - key: PALPLUSS_CALLBACK_URL
+        sync: false
